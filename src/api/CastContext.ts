@@ -42,6 +42,12 @@ export default class CastContext {
    * Get the DiscoveryManager to manage device discovery.
    */
   static getDiscoveryManager(): DiscoveryManager {
+    // Initialize discovery explicitly when requested
+    if (this.discoveryManager) {
+      this.discoveryManager.startDiscovery().catch((err) => {
+        console.warn('Failed to start discovery:', err)
+      })
+    }
     return this.discoveryManager
   }
 
