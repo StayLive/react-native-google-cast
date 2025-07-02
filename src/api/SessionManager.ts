@@ -37,24 +37,55 @@ export default class SessionManager {
    * @param stopCasting Should the receiver application be stopped?
    */
   async endCurrentSession(stopCasting: boolean = false): Promise<void> {
-    return Native.endCurrentSession(stopCasting)
+    try {
+      console.log(
+        '[GoogleCast] Ending current session, stopCasting:',
+        stopCasting
+      )
+      return await Native.endCurrentSession(stopCasting)
+    } catch (error) {
+      console.warn('[GoogleCast] Error ending current session:', error)
+      throw error
+    }
   }
 
   async getCurrentCastSession(): Promise<CastSession | null> {
-    const session = await Native.getCurrentCastSession()
-    if (session) return new CastSession(session)
-    else return null
+    try {
+      const session = await Native.getCurrentCastSession()
+      if (session) {
+        console.log('[GoogleCast] Got cast session with ID:', session.id)
+        return new CastSession(session)
+      } else {
+        console.log('[GoogleCast] No active cast session found')
+        return null
+      }
+    } catch (error) {
+      console.warn('[GoogleCast] Error getting cast session:', error)
+      return null
+    }
   }
 
   get eventEmitter() {
-    return new NativeEventEmitter(Native)
+    try {
+      if (!Native) {
+        console.warn('[GoogleCast] SessionManager Native module not found')
+        throw new Error('Native module not found')
+      }
+      console.log('[GoogleCast] Creating NativeEventEmitter for SessionManager')
+      return new NativeEventEmitter(Native)
+    } catch (error) {
+      console.error('[GoogleCast] Error creating event emitter:', error)
+      throw error
+    }
   }
 
   /** Called when a session is about to be started. */
   onSessionStarting(handler: (session: CastSession) => void) {
+    console.log('[GoogleCast] Adding onSessionStarting listener')
     return this.eventEmitter.addListener(
       Native.SESSION_STARTING,
       ({ session }) => {
+        console.log('[GoogleCast] Session starting with ID:', session?.id)
         handler(new CastSession(session))
       }
     )
@@ -62,9 +93,11 @@ export default class SessionManager {
 
   /** Called when a session has been successfully started. */
   onSessionStarted(handler: (session: CastSession) => void) {
+    console.log('[GoogleCast] Adding onSessionStarted listener')
     return this.eventEmitter.addListener(
       Native.SESSION_STARTED,
       ({ session }) => {
+        console.log('[GoogleCast] Session started with ID:', session?.id)
         handler(new CastSession(session))
       }
     )

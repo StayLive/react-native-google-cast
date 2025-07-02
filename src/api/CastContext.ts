@@ -55,6 +55,13 @@ export default class CastContext {
    * Get the SessionManager to manage cast sessions.
    */
   static getSessionManager(): SessionManager {
+    // Initialize the session manager if needed
+    if (this.sessionManager) {
+      // Try to get the current cast session to ensure proper initialization
+      this.sessionManager.getCurrentCastSession().catch((err) => {
+        console.warn('Failed to get current cast session:', err)
+      })
+    }
     return this.sessionManager
   }
 

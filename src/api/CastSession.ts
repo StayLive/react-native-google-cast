@@ -34,6 +34,28 @@ export default class CastSession {
 
   constructor(args: { id?: string }) {
     this.id = args.id
+    
+    if (this.id) {
+      console.log('[GoogleCast] Session created with ID:', this.id)
+      
+      // Verify client is working by fetching media status
+      setTimeout(() => {
+        this.client
+          .getMediaStatus()
+          .then((status) => {
+            if (status) {
+              console.log(
+                '[GoogleCast] Client is connected and media status is available'
+              )
+            }
+          })
+          .catch((err) => {
+            console.warn('[GoogleCast] Error getting media status:', err)
+          })
+      }, 500) // Slight delay to ensure initialization
+    } else {
+      console.warn('[GoogleCast] Session created without ID')
+    }
   }
 
   /**
