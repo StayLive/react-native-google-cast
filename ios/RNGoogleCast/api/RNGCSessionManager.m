@@ -43,7 +43,24 @@ RCT_EXPORT_MODULE()
 - (void)startObserving {
   hasListeners = YES;
   dispatch_async(dispatch_get_main_queue(), ^{
-    [GCKCastContext.sharedInstance.sessionManager addListener:self];
+    GCKCastContext *castContext = [GCKCastContext sharedInstance];
+    // If no cast context, initialize it
+    if (!castContext) {
+      GCKDiscoveryCriteria *criteria = [[GCKDiscoveryCriteria alloc] initWithApplicationID:kGCKDefaultMediaReceiverApplicationID];
+      GCKCastOptions *options = [[GCKCastOptions alloc] initWithDiscoveryCriteria:criteria];
+      options.disableDiscoveryAutostart = NO;
+      options.startDiscoveryAfterFirstTapOnCastButton = NO;
+      
+      @try {
+        [GCKCastContext setSharedInstanceWithOptions:options];
+        castContext = [GCKCastContext sharedInstance];
+      } @catch (NSException *exception) {
+        NSLog(@"Failed to initialize GCKCastContext: %@", exception.reason);
+        return;
+      }
+    }
+    
+    [castContext.sessionManager addListener:self];
   });
 }
 
@@ -72,8 +89,27 @@ RCT_EXPORT_METHOD(endCurrentSession: (BOOL)stopCasting
 
 RCT_EXPORT_METHOD(getCurrentCastSession: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
-  GCKSessionManager *sessionManager = GCKCastContext.sharedInstance.sessionManager;
-  resolve([RCTConvert fromGCKCastSession:sessionManager.currentCastSession]);
+  dispatch_async(dispatch_get_main_queue(), ^{
+    GCKCastContext *castContext = [GCKCastContext sharedInstance];
+    // If no cast context, initialize it
+    if (!castContext) {
+      GCKDiscoveryCriteria *criteria = [[GCKDiscoveryCriteria alloc] initWithApplicationID:kGCKDefaultMediaReceiverApplicationID];
+      GCKCastOptions *options = [[GCKCastOptions alloc] initWithDiscoveryCriteria:criteria];
+      options.disableDiscoveryAutostart = NO;
+      options.startDiscoveryAfterFirstTapOnCastButton = NO;
+      
+      @try {
+        [GCKCastContext setSharedInstanceWithOptions:options];
+        castContext = [GCKCastContext sharedInstance];
+      } @catch (NSException *exception) {
+        resolve(nil);
+        return;
+      }
+    }
+    
+    GCKSessionManager *sessionManager = castContext.sessionManager;
+    resolve([RCTConvert fromGCKCastSession:sessionManager.currentCastSession]);
+  });
 }
 
 RCT_EXPORT_METHOD(startSession: (NSString *)deviceId

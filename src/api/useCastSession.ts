@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
+import CastContext from './CastContext'
 import CastSession from './CastSession'
-import SessionManager from './SessionManager'
 
 export interface UseCastSessionOptions {
   /**
@@ -37,6 +37,10 @@ export default function useCastSession(
   const [castSession, setCastSession] = useState<CastSession | null>(null)
 
   useEffect(() => {
+    // Use the singleton SessionManager from CastContext
+    const manager = CastContext.getSessionManager()
+    
+    // Initialize session on mount
     manager.getCurrentCastSession().then(setCastSession)
 
     const started = manager.onSessionStarted(setCastSession)
@@ -66,5 +70,3 @@ export default function useCastSession(
 
   return castSession
 }
-
-const manager = new SessionManager()
