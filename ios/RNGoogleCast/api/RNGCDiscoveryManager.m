@@ -177,6 +177,19 @@ RCT_EXPORT_METHOD(startDiscovery: (RCTPromiseResolveBlock) resolve
       return;
     }
     
+    // Ensure we have the SessionManager and add our listener
+    if (castContext.sessionManager) {
+      // Find RNGCSessionManager instance
+      Class sessionManagerClass = NSClassFromString(@"RNGCSessionManager");
+      if (sessionManagerClass) {
+        id sessionManager = [[sessionManagerClass alloc] init];
+        if (sessionManager && [sessionManager respondsToSelector:@selector(startObserving)]) {
+          [sessionManager performSelector:@selector(startObserving)];
+          NSLog(@"[GoogleCast] Forced SessionManager to start observing");
+        }
+      }
+    }
+    
     // Check if discovery options need to be updated for iOS 18.5
     if (@available(iOS 18.0, *)) {
       // For iOS 18+ specifically set these options
@@ -199,6 +212,7 @@ RCT_EXPORT_METHOD(startDiscovery: (RCTPromiseResolveBlock) resolve
     NSLog(@"[GoogleCast] Discovery started successfully");
     resolve(nil);
   });
+}
 }
 
 RCT_EXPORT_METHOD(stopDiscovery: (RCTPromiseResolveBlock) resolve

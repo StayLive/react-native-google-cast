@@ -39,17 +39,41 @@ export default function useCastSession(
   useEffect(() => {
     // Use the singleton SessionManager from CastContext
     const manager = CastContext.getSessionManager()
-    
-    // Initialize session on mount
-    manager.getCurrentCastSession().then(setCastSession)
 
-    const started = manager.onSessionStarted(setCastSession)
+    // Force initialization of CastContext first
+    CastContext.initialize()
+      .then(() => {
+        console.log(
+          '[GoogleCast] CastContext initialized in useCastSession hook'
+        )
+        // Initialize session on mount
+        return manager.getCurrentCastSession()
+      })
+      .then((session) => {
+        console.log(
+          '[GoogleCast] Got initial session in hook:',
+          session?.id || 'none'
+        )
+        setCastSession(session)
+      })
+      .catch((err) => {
+        console.warn('[GoogleCast] Error initializing session in hook:', err)
+      })
+
+    const started = manager.onSessionStarted((session) => {
+      console.log('[GoogleCast] Session started event in hook:', session.id)
+      setCastSession(session)
+    })
 
     const suspended = ignoreBackground
       ? null
-      : manager.onSessionSuspended(() => setCastSession(null))
+      : manager.onSessionSuspended(() => {
+          console.log('[GoogleCast] Session suspended event in hook')
+          setCastSession(null)
+        })
 
     const resumed = manager.onSessionResumed((session) => {
+      console.log('[GoogleCast] Session resumed event in hook:', session.id)
       if (ignoreBackground) {
         // only update the session if it's different from previous one
         setCastSession((s) => (s?.id === session.id ? s : session))
@@ -58,7 +82,10 @@ export default function useCastSession(
       }
     })
 
-    const ended = manager.onSessionEnded(() => setCastSession(null))
+    const ended = manager.onSessionEnded(() => {
+      console.log('[GoogleCast] Session ended event in hook')
+      setCastSession(null)
+    })
 
     return () => {
       started.remove()

@@ -46,6 +46,7 @@ RCT_EXPORT_MODULE()
     GCKCastContext *castContext = [GCKCastContext sharedInstance];
     // If no cast context, initialize it
     if (!castContext) {
+      NSLog(@"[GoogleCast] No cast context found in startObserving, initializing");
       GCKDiscoveryCriteria *criteria = [[GCKDiscoveryCriteria alloc] initWithApplicationID:kGCKDefaultMediaReceiverApplicationID];
       GCKCastOptions *options = [[GCKCastOptions alloc] initWithDiscoveryCriteria:criteria];
       options.disableDiscoveryAutostart = NO;
@@ -54,12 +55,30 @@ RCT_EXPORT_MODULE()
       @try {
         [GCKCastContext setSharedInstanceWithOptions:options];
         castContext = [GCKCastContext sharedInstance];
+        NSLog(@"[GoogleCast] Cast context initialized successfully in startObserving");
       } @catch (NSException *exception) {
-        NSLog(@"Failed to initialize GCKCastContext: %@", exception.reason);
+        NSLog(@"[GoogleCast] Failed to initialize GCKCastContext in startObserving: %@", exception.reason);
         return;
       }
     }
     
+    if (!castContext) {
+      NSLog(@"[GoogleCast] Cast context still not available after initialization in startObserving");
+      return;
+    }
+    
+    // Force discovery to start in iOS 18.5
+    if (![castContext.discoveryManager discoveryActive]) {
+      NSLog(@"[GoogleCast] Starting discovery in startObserving");
+      [castContext.discoveryManager startDiscovery];
+    }
+    
+    if (!castContext.sessionManager) {
+      NSLog(@"[GoogleCast] Session manager not available in startObserving");
+      return;
+    }
+    
+    NSLog(@"[GoogleCast] Adding listener to session manager in startObserving");
     [castContext.sessionManager addListener:self];
   });
 }
@@ -118,14 +137,21 @@ RCT_EXPORT_METHOD(getCurrentCastSession: (RCTPromiseResolveBlock)resolve
     }
     
     // Force discovery to start to ensure devices can be found
-    [castContext.discoveryManager startDiscovery];
+    if (![castContext.discoveryManager discoveryActive]) {
+      NSLog(@"[GoogleCast] Discovery not active in getCurrentCastSession, starting it");
+      [castContext.discoveryManager startDiscovery];
+    }
     
+    // Ensure we have session manager listener registered
     GCKSessionManager *sessionManager = castContext.sessionManager;
     if (!sessionManager) {
       NSLog(@"[GoogleCast] Session manager not available");
       reject(@"no_session_manager", @"Session manager not available", nil);
       return;
     }
+    
+    // Important: Make sure we're listening to the session manager
+    [sessionManager addListener:self];
     
     NSLog(@"[GoogleCast] Returning current cast session");
     resolve([RCTConvert fromGCKCastSession:sessionManager.currentCastSession]);
