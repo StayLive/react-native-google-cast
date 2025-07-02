@@ -21,6 +21,11 @@ export default class CastContext {
     /** The current casting state for the application. */
     static getCastState(): Promise<CastState | null>;
     /**
+     * Initialize the Google Cast SDK to ensure everything is ready
+     * This is called automatically when accessing managers
+     */
+    static initialize(): Promise<void>;
+    /**
      * (Android only) Verifies that Google Play services is installed and enabled on this device, and that the version installed on this device is no older than the one required by this client. Can be used to determine if the Cast framework is available.
      *
      * @see [Android](https://developers.google.com/android/reference/com/google/android/gms/common/GoogleApiAvailability#isGooglePlayServicesAvailable(android.content.Context))

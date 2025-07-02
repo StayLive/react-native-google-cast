@@ -25,6 +25,7 @@ import CastSession from './CastSession';
  * ```
  */
 export default class SessionManager {
+    constructor();
     /**
      * End current session. This disconnects the sender from the receiver but the receiver will continue playing (unless `stopCasting` is set to `true`).
      *
