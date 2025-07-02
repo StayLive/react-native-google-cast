@@ -41,3 +41,4 @@ export { default as StandbyState } from './types/StandbyState';
 export type { default as TextTrackStyle } from './types/TextTrackStyle';
 export type { default as VideoInfo } from './types/VideoInfo';
 export type { default as WebImage } from './types/WebImage';
+export { default as resetCastSDK } from './utils/resetCastSDK';

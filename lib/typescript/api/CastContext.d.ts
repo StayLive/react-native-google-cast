@@ -26,6 +26,11 @@ export default class CastContext {
      */
     static initialize(): Promise<void>;
     /**
+     * Force a complete reset of the Cast context and all managers.
+     * Use this as a last resort if the Cast functionality isn't working properly.
+     */
+    static resetContext(): Promise<void>;
+    /**
      * (Android only) Verifies that Google Play services is installed and enabled on this device, and that the version installed on this device is no older than the one required by this client. Can be used to determine if the Cast framework is available.
      *
      * @see [Android](https://developers.google.com/android/reference/com/google/android/gms/common/GoogleApiAvailability#isGooglePlayServicesAvailable(android.content.Context))
