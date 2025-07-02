@@ -213,7 +213,6 @@ RCT_EXPORT_METHOD(startDiscovery: (RCTPromiseResolveBlock) resolve
     resolve(nil);
   });
 }
-}
 
 RCT_EXPORT_METHOD(stopDiscovery: (RCTPromiseResolveBlock) resolve
                   rejecter: (RCTPromiseRejectBlock) reject) {
