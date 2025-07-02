@@ -30,12 +30,19 @@ import * as MediaMetadata from './types/MediaMetadata'
 export type { MediaMetadata }
 
 // Trigger early initialization of the Cast SDK
+// Do it immediately on load
+console.log('[GoogleCast] Starting immediate initialization from index')
+CastContext.initialize().catch((err) => {
+  console.warn('[GoogleCast] Immediate initialization failed:', err)
+})
+
+// Also set a timeout version as a backup
 setTimeout(() => {
-  console.log('[GoogleCast] Starting early initialization from index')
+  console.log('[GoogleCast] Starting delayed initialization from index')
   CastContext.initialize().catch((err) => {
-    console.warn('[GoogleCast] Early initialization failed:', err)
+    console.warn('[GoogleCast] Delayed initialization failed:', err)
   })
-}, 0)
+}, 1000) // Delay by 1 second as a backup
 export { default as MediaPlayerIdleReason } from './types/MediaPlayerIdleReason'
 export { default as MediaPlayerState } from './types/MediaPlayerState'
 export type { default as MediaQueueContainerMetadata } from './types/MediaQueueContainerMetadata'

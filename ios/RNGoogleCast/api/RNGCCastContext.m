@@ -64,7 +64,39 @@ RCT_REMAP_METHOD(getCastState,
                  getCastStateWithResolver: (RCTPromiseResolveBlock) resolve
                  rejecter: (RCTPromiseRejectBlock) reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    GCKCastState state = [GCKCastContext.sharedInstance castState];
+    GCKCastContext *castContext = [GCKCastContext sharedInstance];
+    if (!castContext) {
+      NSLog(@"[GoogleCast] No cast context found in getCastState, initializing");
+      // Initialize with iOS 18.5-compatible settings
+      GCKDiscoveryCriteria *criteria = [[GCKDiscoveryCriteria alloc] initWithApplicationID:kGCKDefaultMediaReceiverApplicationID];
+      GCKCastOptions *options = [[GCKCastOptions alloc] initWithDiscoveryCriteria:criteria];
+      options.disableDiscoveryAutostart = NO;
+      options.startDiscoveryAfterFirstTapOnCastButton = NO; // Critical for iOS 18.5
+      
+      @try {
+        [GCKCastContext setSharedInstanceWithOptions:options];
+        castContext = [GCKCastContext sharedInstance];
+        NSLog(@"[GoogleCast] Cast context initialized successfully in getCastState");
+      } @catch (NSException *exception) {
+        NSLog(@"[GoogleCast] Failed to initialize Cast SDK in getCastState: %@", exception.reason);
+        resolve(nil);
+        return;
+      }
+    }
+    
+    if (!castContext) {
+      NSLog(@"[GoogleCast] Cast context still not available after initialization attempt in getCastState");
+      resolve(nil);
+      return;
+    }
+    
+    // Now that we have a context, force discovery to start
+    if (![castContext.discoveryManager discoveryActive]) {
+      NSLog(@"[GoogleCast] Starting discovery in getCastState");
+      [castContext.discoveryManager startDiscovery];
+    }
+    
+    GCKCastState state = [castContext castState];
     resolve([RCTConvert fromGCKCastState:state]);
   });
 }

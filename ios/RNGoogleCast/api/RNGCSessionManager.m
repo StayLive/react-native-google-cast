@@ -90,24 +90,44 @@ RCT_EXPORT_METHOD(endCurrentSession: (BOOL)stopCasting
 RCT_EXPORT_METHOD(getCurrentCastSession: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
+    NSLog(@"[GoogleCast] Getting current cast session");
     GCKCastContext *castContext = [GCKCastContext sharedInstance];
     // If no cast context, initialize it
     if (!castContext) {
+      NSLog(@"[GoogleCast] No cast context found, initializing");
       GCKDiscoveryCriteria *criteria = [[GCKDiscoveryCriteria alloc] initWithApplicationID:kGCKDefaultMediaReceiverApplicationID];
       GCKCastOptions *options = [[GCKCastOptions alloc] initWithDiscoveryCriteria:criteria];
       options.disableDiscoveryAutostart = NO;
-      options.startDiscoveryAfterFirstTapOnCastButton = NO;
+      options.startDiscoveryAfterFirstTapOnCastButton = NO; // Critical for iOS 18.5
       
       @try {
         [GCKCastContext setSharedInstanceWithOptions:options];
         castContext = [GCKCastContext sharedInstance];
+        NSLog(@"[GoogleCast] Cast context initialized successfully");
       } @catch (NSException *exception) {
-        resolve(nil);
+        NSLog(@"[GoogleCast] Failed to initialize Cast SDK: %@", exception.reason);
+        reject(@"initialization_error", [NSString stringWithFormat:@"Failed to initialize Cast SDK: %@", exception.reason], nil);
         return;
       }
     }
     
+    if (!castContext) {
+      NSLog(@"[GoogleCast] Cast context still not available after initialization attempt");
+      reject(@"no_context", @"Cast context not available", nil);
+      return;
+    }
+    
+    // Force discovery to start to ensure devices can be found
+    [castContext.discoveryManager startDiscovery];
+    
     GCKSessionManager *sessionManager = castContext.sessionManager;
+    if (!sessionManager) {
+      NSLog(@"[GoogleCast] Session manager not available");
+      reject(@"no_session_manager", @"Session manager not available", nil);
+      return;
+    }
+    
+    NSLog(@"[GoogleCast] Returning current cast session");
     resolve([RCTConvert fromGCKCastSession:sessionManager.currentCastSession]);
   });
 }
