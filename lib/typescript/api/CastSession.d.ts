@@ -24,18 +24,11 @@ import RemoteMediaClient from './RemoteMediaClient';
  */
 export default class CastSession {
     client: RemoteMediaClient;
-    private clientInitialized;
-    private initializationAttempts;
-    private readonly MAX_INIT_ATTEMPTS;
     /** Unique session ID. */
     id?: string;
     constructor(args: {
         id?: string;
     });
-    /**
-     * Initialize the RemoteMediaClient with retries to ensure it's properly connected
-     */
-    private initializeClient;
     /**
      * Creates a channel for sending custom messages between this sender and the Cast receiver. Use when you've built a custom receiver and want to communicate with it.
      *
@@ -64,10 +57,6 @@ export default class CastSession {
      */
     getCastDevice(): Promise<Device | null>;
     getClient(): RemoteMediaClient;
-    /**
-     * Force refresh the client connection. Call this if you suspect the client might be in a bad state.
-     */
-    refreshClient(): Promise<boolean>;
     /**
      * Indicates whether a receiver device's connected TV or AVR is currently in "standby" mode.
      */

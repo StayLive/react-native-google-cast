@@ -93,37 +93,6 @@ export default class CastContext {
   }
 
   /**
-   * Force a complete reset of the Cast context and all managers.
-   * Use this as a last resort if the Cast functionality isn't working properly.
-   */
-  static resetContext(): Promise<void> {
-    console.log('[GoogleCast] Performing full context reset')
-
-    // Reset initialization flags
-    isInitialized = false
-    isInitializing = false
-    initializationPromise = null
-
-    // Try to stop discovery first
-    return this.discoveryManager
-      .stopDiscovery()
-      .catch(() => {
-        // Ignore errors here
-      })
-      .then(() => {
-        // Try to end any existing session
-        return this.sessionManager.endCurrentSession(true).catch(() => {
-          // Ignore errors here
-        })
-      })
-      .then(() => {
-        console.log('[GoogleCast] Starting fresh initialization after reset')
-        // Start a fresh initialization
-        return this.initialize()
-      })
-  }
-
-  /**
    * (Android only) Verifies that Google Play services is installed and enabled on this device, and that the version installed on this device is no older than the one required by this client. Can be used to determine if the Cast framework is available.
    *
    * @see [Android](https://developers.google.com/android/reference/com/google/android/gms/common/GoogleApiAvailability#isGooglePlayServicesAvailable(android.content.Context))

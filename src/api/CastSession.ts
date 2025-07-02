@@ -5,7 +5,6 @@ import Device from '../types/Device'
 import StandbyState from '../types/StandbyState'
 import CastChannel from './CastChannel'
 import RemoteMediaClient from './RemoteMediaClient'
-import CastContext from './CastContext'
 
 const { RNGCCastSession: Native } = NativeModules
 
@@ -28,88 +27,35 @@ const { RNGCCastSession: Native } = NativeModules
  * ```
  */
 export default class CastSession {
-  client: RemoteMediaClient
-  private clientInitialized = false
-  private initializationAttempts = 0
-  private readonly MAX_INIT_ATTEMPTS = 3
+  client = new RemoteMediaClient()
 
   /** Unique session ID. */
   id?: string
 
   constructor(args: { id?: string }) {
     this.id = args.id
-    this.client = new RemoteMediaClient()
 
-    console.log(
-      '[GoogleCast] Creating CastSession',
-      this.id ? `with ID: ${this.id}` : 'without ID'
-    )
+    if (this.id) {
+      console.log('[GoogleCast] Session created with ID:', this.id)
 
-    // Ensure CastContext is initialized
-    CastContext.initialize().catch((err) => {
-      console.warn(
-        '[GoogleCast] Error ensuring CastContext initialization in session:',
-        err
-      )
-    })
-
-    // Initialize client with retry logic
-    this.initializeClient()
-  }
-
-  /**
-   * Initialize the RemoteMediaClient with retries to ensure it's properly connected
-   */
-  private initializeClient(): void {
-    if (
-      this.clientInitialized ||
-      this.initializationAttempts >= this.MAX_INIT_ATTEMPTS
-    ) {
-      return
+      // Verify client is working by fetching media status
+      setTimeout(() => {
+        this.client
+          .getMediaStatus()
+          .then((status) => {
+            if (status) {
+              console.log(
+                '[GoogleCast] Client is connected and media status is available'
+              )
+            }
+          })
+          .catch((err) => {
+            console.warn('[GoogleCast] Error getting media status:', err)
+          })
+      }, 500) // Slight delay to ensure initialization
+    } else {
+      console.warn('[GoogleCast] Session created without ID')
     }
-
-    this.initializationAttempts++
-
-    if (!this.id) {
-      console.warn('[GoogleCast] Cannot initialize client without session ID')
-      return
-    }
-
-    console.log(
-      `[GoogleCast] Initializing client, attempt ${this.initializationAttempts}/${this.MAX_INIT_ATTEMPTS}`
-    )
-
-    // First try to verify if the client can connect
-    setTimeout(() => {
-      this.client
-        .getMediaStatus()
-        .then((status) => {
-          console.log('[GoogleCast] Client initialized successfully')
-          this.clientInitialized = true
-
-          if (status) {
-            console.log(
-              '[GoogleCast] Media status is available:',
-              JSON.stringify(status)
-            )
-          } else {
-            console.log('[GoogleCast] No active media found')
-          }
-        })
-        .catch((err) => {
-          console.warn(
-            `[GoogleCast] Error initializing client (attempt ${this.initializationAttempts}/${this.MAX_INIT_ATTEMPTS}):`,
-            err
-          )
-
-          // Try again with a longer delay
-          if (this.initializationAttempts < this.MAX_INIT_ATTEMPTS) {
-            setTimeout(() => {
-              this.initializeClient()
-            }, 1000 * this.initializationAttempts) // Increasing delay with each attempt
-          }
-        })
-    }, 500) // Initial delay
   }
 
   /**
@@ -155,37 +101,7 @@ export default class CastSession {
   }
 
   getClient(): RemoteMediaClient {
-    // If client initialization wasn't successful, try again
-    if (!this.clientInitialized && this.id) {
-      console.log('[GoogleCast] Client not initialized, retrying in getClient')
-      this.initializeClient()
-    }
     return this.client
-  }
-
-  /**
-   * Force refresh the client connection. Call this if you suspect the client might be in a bad state.
-   */
-  refreshClient(): Promise<boolean> {
-    this.clientInitialized = false
-    this.initializationAttempts = 0
-    this.initializeClient()
-
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Check if client is working by trying to get media status
-        this.client
-          .getMediaStatus()
-          .then(() => {
-            console.log('[GoogleCast] Client refreshed successfully')
-            resolve(true)
-          })
-          .catch(() => {
-            console.warn('[GoogleCast] Client refresh failed')
-            resolve(false)
-          })
-      }, 1000)
-    })
   }
 
   /**
