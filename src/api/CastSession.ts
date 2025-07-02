@@ -34,10 +34,10 @@ export default class CastSession {
 
   constructor(args: { id?: string }) {
     this.id = args.id
-    
+
     if (this.id) {
       console.log('[GoogleCast] Session created with ID:', this.id)
-      
+
       // Verify client is working by fetching media status
       setTimeout(() => {
         this.client

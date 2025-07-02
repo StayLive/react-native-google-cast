@@ -6,6 +6,13 @@ import SessionManager from './SessionManager'
 
 const { RNGCCastContext: Native } = NativeModules
 
+// Flag to track if we've performed initialization
+let isInitialized = false
+// Flag to track if initialization is in progress
+let isInitializing = false
+// Promise for ongoing initialization
+let initializationPromise: Promise<void> | null = null
+
 /**
  * A root class containing global objects and state for the Cast SDK. It is the default export of this library.
  *
@@ -30,6 +37,62 @@ export default class CastContext {
   }
 
   /**
+   * Initialize the Google Cast SDK to ensure everything is ready
+   * This is called automatically when accessing managers
+   */
+  static initialize(): Promise<void> {
+    if (isInitialized) {
+      return Promise.resolve()
+    }
+
+    if (isInitializing && initializationPromise) {
+      return initializationPromise
+    }
+
+    isInitializing = true
+
+    console.log('[GoogleCast] Starting initialization')
+
+    initializationPromise = new Promise<void>((resolveInit) => {
+      // First, check if the Cast SDK is available
+      Native.getCastState()
+        .then((state: CastState | null) => {
+          console.log('[GoogleCast] Cast state during initialization:', state)
+
+          // Now start discovery to ensure the Cast SDK is fully initialized
+          return this.discoveryManager.startDiscovery()
+        })
+        .then(() => {
+          console.log('[GoogleCast] Discovery started')
+
+          // Give a small delay to allow the SDK to initialize fully
+          return new Promise<void>((resolveDelay) =>
+            setTimeout(resolveDelay, 500)
+          )
+        })
+        .then(() => {
+          // Try to get a session if available to fully initialize
+          return this.sessionManager.getCurrentCastSession().catch(() => null) // Ignore errors here
+        })
+        .then(() => {
+          console.log('[GoogleCast] Initialization completed successfully')
+          isInitialized = true
+          isInitializing = false
+          resolveInit()
+        })
+        .catch((error: Error) => {
+          console.warn('[GoogleCast] Initialization failed:', error)
+          isInitializing = false
+          // Even if initialization fails, mark as initialized to avoid repeated failures
+          isInitialized = true
+          resolveInit() // Resolve anyway to allow the app to continue
+        })
+    })
+
+    return initializationPromise
+  }
+
+  /**
    * (Android only) Verifies that Google Play services is installed and enabled on this device, and that the version installed on this device is no older than the one required by this client. Can be used to determine if the Cast framework is available.
    *
    * @see [Android](https://developers.google.com/android/reference/com/google/android/gms/common/GoogleApiAvailability#isGooglePlayServicesAvailable(android.content.Context))
@@ -42,12 +105,13 @@ export default class CastContext {
    * Get the DiscoveryManager to manage device discovery.
    */
   static getDiscoveryManager(): DiscoveryManager {
-    // Initialize discovery explicitly when requested
-    if (this.discoveryManager) {
-      this.discoveryManager.startDiscovery().catch((err) => {
-        console.warn('Failed to start discovery:', err)
-      })
-    }
+    // Initialize the Cast SDK first
+    this.initialize().catch((err: Error) => {
+      console.warn(
+        '[GoogleCast] Failed to initialize during getDiscoveryManager:',
+        err
+      )
+    })
     return this.discoveryManager
   }
 
@@ -55,13 +119,13 @@ export default class CastContext {
    * Get the SessionManager to manage cast sessions.
    */
   static getSessionManager(): SessionManager {
-    // Initialize the session manager if needed
-    if (this.sessionManager) {
-      // Try to get the current cast session to ensure proper initialization
-      this.sessionManager.getCurrentCastSession().catch((err) => {
-        console.warn('Failed to get current cast session:', err)
-      })
-    }
+    // Initialize the Cast SDK first
+    this.initialize().catch((err: Error) => {
+      console.warn(
+        '[GoogleCast] Failed to initialize during getSessionManager:',
+        err
+      )
+    })
     return this.sessionManager
   }
 

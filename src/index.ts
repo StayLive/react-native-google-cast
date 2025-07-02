@@ -28,6 +28,14 @@ export type { default as MediaInfo } from './types/MediaInfo'
 export type { default as MediaLoadRequest } from './types/MediaLoadRequest'
 import * as MediaMetadata from './types/MediaMetadata'
 export type { MediaMetadata }
+
+// Trigger early initialization of the Cast SDK
+setTimeout(() => {
+  console.log('[GoogleCast] Starting early initialization from index')
+  CastContext.initialize().catch((err) => {
+    console.warn('[GoogleCast] Early initialization failed:', err)
+  })
+}, 0)
 export { default as MediaPlayerIdleReason } from './types/MediaPlayerIdleReason'
 export { default as MediaPlayerState } from './types/MediaPlayerState'
 export type { default as MediaQueueContainerMetadata } from './types/MediaQueueContainerMetadata'
