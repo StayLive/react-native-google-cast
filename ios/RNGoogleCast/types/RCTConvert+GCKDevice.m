@@ -39,7 +39,7 @@
 
   json[@"friendlyName"] = device.friendlyName;
 
-  NSMutableArray<id> *icons;
+  NSMutableArray<id> *icons = [NSMutableArray array];
   for (GCKImage *icon in device.icons) {
     [icons addObject:[RCTConvert fromGCKImage:icon]];
   };
