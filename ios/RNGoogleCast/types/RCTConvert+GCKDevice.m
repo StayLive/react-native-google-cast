@@ -40,12 +40,20 @@
   json[@"friendlyName"] = device.friendlyName;
 
   NSMutableArray<id> *icons = [NSMutableArray array];
-  for (GCKImage *icon in device.icons) {
-    [icons addObject:[RCTConvert fromGCKImage:icon]];
-  };
+  if (device.icons != nil) {
+    for (GCKImage *icon in device.icons) {
+      if (icon != nil) {
+        [icons addObject:[RCTConvert fromGCKImage:icon]];
+      }
+    }
+  }
   json[@"icons"] = icons;
 
-  json[@"ipAddress"] = device.networkAddress.ipAddress;
+  if (device.networkAddress != nil) {
+    json[@"ipAddress"] = device.networkAddress.ipAddress;
+  } else {
+    json[@"ipAddress"] = [NSNull null];
+  }
 
   json[@"isOnLocalNetwork"] = @(device.isOnLocalNetwork);
 
