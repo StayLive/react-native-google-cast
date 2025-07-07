@@ -46,7 +46,6 @@ RCT_EXPORT_MODULE()
     GCKCastContext *castContext = [GCKCastContext sharedInstance];
     // If no cast context, initialize it
     if (!castContext) {
-      NSLog(@"[GoogleCast] No cast context found in startObserving, initializing");
       GCKDiscoveryCriteria *criteria = [[GCKDiscoveryCriteria alloc] initWithApplicationID:kGCKDefaultMediaReceiverApplicationID];
       GCKCastOptions *options = [[GCKCastOptions alloc] initWithDiscoveryCriteria:criteria];
       options.disableDiscoveryAutostart = NO;
@@ -55,30 +54,24 @@ RCT_EXPORT_MODULE()
       @try {
         [GCKCastContext setSharedInstanceWithOptions:options];
         castContext = [GCKCastContext sharedInstance];
-        NSLog(@"[GoogleCast] Cast context initialized successfully in startObserving");
       } @catch (NSException *exception) {
-        NSLog(@"[GoogleCast] Failed to initialize GCKCastContext in startObserving: %@", exception.reason);
         return;
       }
     }
     
     if (!castContext) {
-      NSLog(@"[GoogleCast] Cast context still not available after initialization in startObserving");
       return;
     }
     
     // Force discovery to start in iOS 18.5
     if (![castContext.discoveryManager discoveryActive]) {
-      NSLog(@"[GoogleCast] Starting discovery in startObserving");
       [castContext.discoveryManager startDiscovery];
     }
     
     if (!castContext.sessionManager) {
-      NSLog(@"[GoogleCast] Session manager not available in startObserving");
       return;
     }
     
-    NSLog(@"[GoogleCast] Adding listener to session manager in startObserving");
     [castContext.sessionManager addListener:self];
   });
 }
@@ -109,11 +102,9 @@ RCT_EXPORT_METHOD(endCurrentSession: (BOOL)stopCasting
 RCT_EXPORT_METHOD(getCurrentCastSession: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    NSLog(@"[GoogleCast] Getting current cast session");
     GCKCastContext *castContext = [GCKCastContext sharedInstance];
     // If no cast context, initialize it
     if (!castContext) {
-      NSLog(@"[GoogleCast] No cast context found, initializing");
       GCKDiscoveryCriteria *criteria = [[GCKDiscoveryCriteria alloc] initWithApplicationID:kGCKDefaultMediaReceiverApplicationID];
       GCKCastOptions *options = [[GCKCastOptions alloc] initWithDiscoveryCriteria:criteria];
       options.disableDiscoveryAutostart = NO;
@@ -122,7 +113,6 @@ RCT_EXPORT_METHOD(getCurrentCastSession: (RCTPromiseResolveBlock)resolve
       @try {
         [GCKCastContext setSharedInstanceWithOptions:options];
         castContext = [GCKCastContext sharedInstance];
-        NSLog(@"[GoogleCast] Cast context initialized successfully");
       } @catch (NSException *exception) {
         NSLog(@"[GoogleCast] Failed to initialize Cast SDK: %@", exception.reason);
         reject(@"initialization_error", [NSString stringWithFormat:@"Failed to initialize Cast SDK: %@", exception.reason], nil);
