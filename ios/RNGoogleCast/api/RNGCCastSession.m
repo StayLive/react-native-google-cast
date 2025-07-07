@@ -25,11 +25,7 @@ RCT_EXPORT_MODULE();
 - (instancetype)init {
   if (self = [super init]) {
     channels = [[NSMutableDictionary alloc] init];
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-      self->castSession = [GCKCastContext.sharedInstance.sessionManager currentCastSession];
-      [GCKCastContext.sharedInstance.sessionManager addListener:self];
-    });
+    castSession = nil;
   }
   return self;
 }
@@ -55,8 +51,16 @@ RCT_EXPORT_MODULE();
 - (void)startObserving {
   hasListeners = YES;
   dispatch_async(dispatch_get_main_queue(), ^{
-    GCKCastSession *session = [GCKCastContext.sharedInstance.sessionManager currentCastSession];
+    GCKCastContext *castContext = [GCKCastContext sharedInstance];
+    if (!castContext || !castContext.sessionManager) {
+      return;
+    }
+    
+    [castContext.sessionManager addListener:self];
+    
+    GCKCastSession *session = [castContext.sessionManager currentCastSession];
     if (session != nil) {
+      self->castSession = session;
       [session addDeviceStatusListener:self];
     }
   });
@@ -66,9 +70,14 @@ RCT_EXPORT_MODULE();
   if (!hasListeners) { return; }
   hasListeners = NO;
   dispatch_async(dispatch_get_main_queue(), ^{
-    GCKCastSession *session = [GCKCastContext.sharedInstance.sessionManager currentCastSession];
-    if (session != nil) {
-      [session removeDeviceStatusListener:self];
+    GCKCastContext *castContext = [GCKCastContext sharedInstance];
+    if (castContext && castContext.sessionManager) {
+      [castContext.sessionManager removeListener:self];
+    }
+    
+    if (self->castSession != nil) {
+      [self->castSession removeDeviceStatusListener:self];
+      self->castSession = nil;
     }
   });
 }
@@ -76,9 +85,36 @@ RCT_EXPORT_MODULE();
 - (void)invalidate {
   [self stopObserving];
   dispatch_async(dispatch_get_main_queue(), ^{
+    GCKCastContext *castContext = [GCKCastContext sharedInstance];
+    if (castContext && castContext.sessionManager) {
+      [castContext.sessionManager removeListener:self];
+    }
     self->castSession = nil;
-    [GCKCastContext.sharedInstance.sessionManager removeListener:self];
   });
+}
+
+# pragma mark - Helper methods
+
+- (GCKCastSession *)getCurrentCastSession {
+  GCKCastContext *castContext = [GCKCastContext sharedInstance];
+  if (!castContext || !castContext.sessionManager) {
+    return nil;
+  }
+  
+  GCKCastSession *currentSession = [castContext.sessionManager currentCastSession];
+  
+  // Sync our cached session with the current session
+  if (currentSession != castSession) {
+    if (castSession) {
+      [castSession removeDeviceStatusListener:self];
+    }
+    castSession = currentSession;
+    if (castSession && hasListeners) {
+      [castSession addDeviceStatusListener:self];
+    }
+  }
+  
+  return currentSession;
 }
 
 # pragma mark - GCKCastSession methods
@@ -86,49 +122,84 @@ RCT_EXPORT_MODULE();
 RCT_EXPORT_METHOD(getActiveInputState: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    resolve([RCTConvert fromGCKActiveInputStatus:[self->castSession activeInputStatus]]);
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    resolve([RCTConvert fromGCKActiveInputStatus:[session activeInputStatus]]);
   });
 }
 
 RCT_EXPORT_METHOD(getApplicationMetadata: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    resolve([RCTConvert fromGCKApplicationMetadata:[self->castSession applicationMetadata]]);
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    resolve([RCTConvert fromGCKApplicationMetadata:[session applicationMetadata]]);
   });
 }
 
 RCT_EXPORT_METHOD(getApplicationStatus: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    resolve([self->castSession deviceStatusText]);
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    resolve([session deviceStatusText]);
   });
 }
 
 RCT_EXPORT_METHOD(getCastDevice: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    resolve([RCTConvert fromGCKDevice:[self->castSession device]]);
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    resolve([RCTConvert fromGCKDevice:[session device]]);
   });
 }
 
 RCT_EXPORT_METHOD(getStandbyState: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    resolve([RCTConvert fromGCKStandbyStatus:[self->castSession standbyStatus]]);
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    resolve([RCTConvert fromGCKStandbyStatus:[session standbyStatus]]);
   });
 }
 
 RCT_EXPORT_METHOD(getVolume: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    resolve(@([self->castSession currentDeviceVolume]));
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    resolve(@([session currentDeviceVolume]));
   });
 }
 
 RCT_EXPORT_METHOD(isMute: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    resolve(@([self->castSession currentDeviceMuted]));
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    resolve(@([session currentDeviceMuted]));
   });
 }
 
@@ -136,7 +207,12 @@ RCT_EXPORT_METHOD(setMute: (BOOL)mute
                   resolver: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    GCKRequest *request = [self->castSession setDeviceMuted:mute];
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    GCKRequest *request = [session setDeviceMuted:mute];
     [RNGCRequest promisifyRequest:request resolve:resolve reject:reject];
   });
 }
@@ -145,7 +221,12 @@ RCT_EXPORT_METHOD(setVolume: (float)volume
                   resolver: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    GCKRequest *request = [self->castSession setDeviceVolume:volume];
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    GCKRequest *request = [session setDeviceVolume:volume];
     [RNGCRequest promisifyRequest:request resolve:resolve reject:reject];
   });
 }
@@ -168,9 +249,15 @@ RCT_EXPORT_METHOD(addChannel: (NSString *)namespace
                   resolver: (RCTPromiseResolveBlock) resolve
                   rejecter: (RCTPromiseRejectBlock) reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    
     GCKGenericChannel *channel = [[GCKGenericChannel alloc] initWithNamespace:namespace];
     channel.delegate = self;
-    [self->castSession addChannel:channel];
+    [session addChannel:channel];
     [self->channels setObject:channel forKey:namespace];
     resolve([RCTConvert fromGCKCastChannel:channel]);
   });
@@ -181,9 +268,16 @@ RCT_EXPORT_METHOD(removeChannel: (NSString *)namespace
                   rejecter: (RCTPromiseRejectBlock) reject) {
   GCKCastChannel *channel = self->channels[namespace];
   if (channel == nil) { return resolve(nil); }
+  
   dispatch_async(dispatch_get_main_queue(), ^{
+    GCKCastSession *session = [self getCurrentCastSession];
+    if (!session) {
+      reject(@"no_session", @"No active cast session", nil);
+      return;
+    }
+    
     [self->channels removeObjectForKey:namespace];
-    [self->castSession removeChannel:channel];
+    [session removeChannel:channel];
     resolve(nil);
   });
 }

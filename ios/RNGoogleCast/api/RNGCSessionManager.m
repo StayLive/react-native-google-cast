@@ -5,6 +5,7 @@
 
 @implementation RNGCSessionManager {
   BOOL hasListeners;
+  BOOL isListenerRegistered;
 }
 
 RCT_EXPORT_MODULE()
@@ -72,7 +73,10 @@ RCT_EXPORT_MODULE()
       return;
     }
     
-    [castContext.sessionManager addListener:self];
+    if (!self->isListenerRegistered) {
+      [castContext.sessionManager addListener:self];
+      self->isListenerRegistered = YES;
+    }
   });
 }
 
@@ -81,12 +85,23 @@ RCT_EXPORT_MODULE()
   if (!hasListeners) { return; }
   hasListeners = NO;
   dispatch_async(dispatch_get_main_queue(), ^{
-    [GCKCastContext.sharedInstance.sessionManager removeListener:self];
+    GCKCastContext *castContext = [GCKCastContext sharedInstance];
+    if (castContext && castContext.sessionManager && self->isListenerRegistered) {
+      [castContext.sessionManager removeListener:self];
+      self->isListenerRegistered = NO;
+    }
   });
 }
 
 - (void)invalidate {
   [self stopObserving];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    GCKCastContext *castContext = [GCKCastContext sharedInstance];
+    if (castContext && castContext.sessionManager && self->isListenerRegistered) {
+      [castContext.sessionManager removeListener:self];
+      self->isListenerRegistered = NO;
+    }
+  });
 }
 
 RCT_EXPORT_METHOD(endCurrentSession: (BOOL)stopCasting
@@ -140,8 +155,11 @@ RCT_EXPORT_METHOD(getCurrentCastSession: (RCTPromiseResolveBlock)resolve
       return;
     }
     
-    // Important: Make sure we're listening to the session manager
-    [sessionManager addListener:self];
+    // Register listener if not already registered
+    if (!self->isListenerRegistered) {
+      [sessionManager addListener:self];
+      self->isListenerRegistered = YES;
+    }
     
     NSLog(@"[GoogleCast] Returning current cast session");
     resolve([RCTConvert fromGCKCastSession:sessionManager.currentCastSession]);
